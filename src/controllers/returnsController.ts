@@ -2,16 +2,22 @@ import tzlookup from "tz-lookup";
 import swisseph from "swisseph-v2";
 import moment from "moment";
 import { Request, Response } from "express";
-import { allPlanets, calculateJulianDayAndUT, getSign } from "../utils";
+import {
+  allPlanets,
+  calculateJulianDayAndUT,
+  getSign,
+  getSouthNode,
+} from "../utils";
 import { PlanetPosition } from "../interfaces";
 
 export const solar = (req: Request, res: Response) => {
-  const { birthDate, birthTime, targetDate } = req.body;
+  // const { birthDate, birthTime, targetDate } = req.body;
+  const { birthDate, targetDate } = req.body;
   const coordinates = birthDate.coordinates;
 
   if (
     !birthDate ||
-    birthTime == null ||
+    // birthTime == null ||
     !targetDate ||
     coordinates.latitude == null ||
     coordinates.longitude == null
@@ -21,7 +27,12 @@ export const solar = (req: Request, res: Response) => {
 
   // Birth Sun Calc
   const timezone = tzlookup(coordinates.latitude, coordinates.longitude);
-  const sunPosData = calculateJulianDayAndUT(timezone, birthDate, birthTime);
+  // const sunPosData = calculateJulianDayAndUT(timezone, birthDate, birthTime);
+  const sunPosData = calculateJulianDayAndUT(
+    timezone,
+    birthDate,
+    birthDate.time
+  );
 
   const pos = swisseph.swe_calc_ut(
     sunPosData.julianDay,
@@ -41,26 +52,30 @@ export const solar = (req: Request, res: Response) => {
     const pos = swisseph.swe_calc_ut(
       sunPosData.julianDay,
       planet.id,
-      0
+      swisseph.SEFLG_SPEED
     ) as PlanetPosition;
     return {
       name: planet.name,
       id: planet.id,
       longitude: Number.parseFloat(pos.longitude.toFixed(2)),
       sign: getSign(pos.longitude),
+      isRetrograde: pos.longitudeSpeed < 0,
     };
   });
+
+  const southNode = getSouthNode(sunPosData.julianDay);
+  planets.push(southNode);
 
   // Estimate Sun Pos at Target Year
 
   let targetYearSunPosData = calculateJulianDayAndUT(
     timezone,
     targetDate,
-    birthTime
+    birthDate.time
   );
 
   let jsTime = (targetYearSunPosData.julianDay - 2440587.5) * 86400000;
-  let estimatedTime = moment(new Date(jsTime))
+  let returnTime = moment(new Date(jsTime))
     .tz(timezone)
     .format("YYYY-MM-DD HH:mm:ss");
 
@@ -136,7 +151,7 @@ export const solar = (req: Request, res: Response) => {
   // Calcular essas paradas só quando tiver encontrado a posição exata do Sol
 
   jsTime = (targetYearJulianDay - 2440587.5) * 86400000;
-  estimatedTime = moment(new Date(jsTime))
+  returnTime = moment(new Date(jsTime))
     .tz(timezone)
     .format("YYYY-MM-DD HH:mm:ss");
 
@@ -151,21 +166,26 @@ export const solar = (req: Request, res: Response) => {
     const pos = swisseph.swe_calc_ut(
       targetYearJulianDay,
       planet.id,
-      0
+      swisseph.SEFLG_SPEED
     ) as PlanetPosition;
     return {
       name: planet.name,
       id: planet.id,
       longitude: Number.parseFloat(pos.longitude.toFixed(2)),
       sign: getSign(pos.longitude),
+      isRetrograde: pos.longitudeSpeed < 0,
     };
   });
+
+  const returnSouthNode = getSouthNode(targetYearJulianDay);
+  planets.push(returnSouthNode);
 
   res.json({
     // targetYearSunData,
     housesData,
     planets,
-    estimatedTime,
+    returnTime,
+    timezone,
     returnHousesData,
     returnPlanets,
     // sunDataAtBirth: pos,
@@ -176,12 +196,13 @@ export const solar = (req: Request, res: Response) => {
 };
 
 export const lunar = (req: Request, res: Response) => {
-  const { birthDate, birthTime, targetDate } = req.body;
+  // const { birthDate, birthTime, targetDate } = req.body;
+  const { birthDate, targetDate } = req.body;
   const coordinates = birthDate.coordinates;
 
   if (
     !birthDate ||
-    birthTime == null ||
+    // birthTime == null ||
     !targetDate ||
     coordinates.latitude == null ||
     coordinates.longitude == null
@@ -191,7 +212,11 @@ export const lunar = (req: Request, res: Response) => {
 
   // Birth Moon Calc
   const timezone = tzlookup(coordinates.latitude, coordinates.longitude);
-  const moonPosData = calculateJulianDayAndUT(timezone, birthDate, birthTime);
+  const moonPosData = calculateJulianDayAndUT(
+    timezone,
+    birthDate,
+    birthDate.time
+  );
 
   const pos = swisseph.swe_calc_ut(
     moonPosData.julianDay,
@@ -211,26 +236,30 @@ export const lunar = (req: Request, res: Response) => {
     const pos = swisseph.swe_calc_ut(
       moonPosData.julianDay,
       planet.id,
-      0
+      swisseph.SEFLG_SPEED
     ) as PlanetPosition;
     return {
       name: planet.name,
       id: planet.id,
       longitude: Number.parseFloat(pos.longitude.toFixed(2)),
       sign: getSign(pos.longitude),
+      isRetrograde: pos.longitudeSpeed < 0,
     };
   });
+
+  const southNode = getSouthNode(moonPosData.julianDay);
+  planets.push(southNode);
 
   // Estimate Moon Pos at Target Date
 
   let targetDateMoonPosData = calculateJulianDayAndUT(
     timezone,
     targetDate,
-    birthTime
+    birthDate.time
   );
 
   let jsTime = (targetDateMoonPosData.julianDay - 2440587.5) * 86400000;
-  let estimatedTime = moment(new Date(jsTime))
+  let returnTime = moment(new Date(jsTime))
     .tz(timezone)
     .format("YYYY-MM-DD HH:mm:ss");
 
@@ -306,7 +335,7 @@ export const lunar = (req: Request, res: Response) => {
   // Calcular essas paradas só quando tiver encontrado a posição exata do Sol
 
   jsTime = (targetYearJulianDay - 2440587.5) * 86400000;
-  estimatedTime = moment(new Date(jsTime))
+  returnTime = moment(new Date(jsTime))
     .tz(timezone)
     .format("YYYY-MM-DD HH:mm:ss");
 
@@ -321,20 +350,25 @@ export const lunar = (req: Request, res: Response) => {
     const pos = swisseph.swe_calc_ut(
       targetYearJulianDay,
       planet.id,
-      0
+      swisseph.SEFLG_SPEED
     ) as PlanetPosition;
     return {
       name: planet.name,
       id: planet.id,
       longitude: Number.parseFloat(pos.longitude.toFixed(2)),
       sign: getSign(pos.longitude),
+      isRetrograde: pos.longitudeSpeed < 0,
     };
   });
+
+  const returnSouthNode = getSouthNode(targetYearJulianDay);
+  returnPlanets.push(returnSouthNode);
 
   res.json({
     housesData,
     planets,
-    estimatedTime,
+    returnTime,
+    timezone,
     returnHousesData,
     returnPlanets,
     // moonDataAtBirth: pos,

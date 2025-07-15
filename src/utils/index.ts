@@ -1,5 +1,5 @@
 import swisseph from "swisseph-v2";
-import { BirthDate, Planet } from "../interfaces";
+import { BirthDate, Planet, PlanetPosition } from "../interfaces";
 import moment from "moment";
 
 export const allPlanets: Planet[] = [
@@ -13,6 +13,7 @@ export const allPlanets: Planet[] = [
   { id: swisseph.SE_URANUS, name: "Urano" },
   { id: swisseph.SE_NEPTUNE, name: "Netuno" },
   { id: swisseph.SE_PLUTO, name: "Plutão" },
+  { id: swisseph.SE_TRUE_NODE - 1, name: "Nodo Norte" }, // Subtraindo 1 pra casar com a ordem do array
 ];
 
 export function getSign(longitude: number) {
@@ -58,4 +59,25 @@ export function calculateJulianDayAndUT(
   );
 
   return { julianDay, universalTime };
+}
+
+export function getSouthNode(julianDay: number) {
+  const trueNodePos = swisseph.swe_calc_ut(
+    julianDay,
+    swisseph.SE_TRUE_NODE,
+    swisseph.SEFLG_SPEED
+  ) as PlanetPosition;
+  const northLon = Number(trueNodePos.longitude.toFixed(2));
+  const northSpeed = Number(trueNodePos.longitudeSpeed.toFixed(4));
+
+  // 3) Nodo Sul (South Node) = posição oposta + 180°
+  const southLon = Number(((northLon + 180) % 360).toFixed(2));
+
+  return {
+    name: "Nodo Sul",
+    id: swisseph.SE_TRUE_NODE, // Subtraindo 1 pra casar com a ordem do array
+    longitude: southLon,
+    sign: getSign(southLon),
+    isRetrograde: northSpeed < 0,
+  };
 }

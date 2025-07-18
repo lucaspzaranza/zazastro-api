@@ -17,7 +17,6 @@ export const solar = (req: Request, res: Response) => {
 
   if (
     !birthDate ||
-    // birthTime == null ||
     !targetDate ||
     coordinates.latitude == null ||
     coordinates.longitude == null
@@ -27,7 +26,6 @@ export const solar = (req: Request, res: Response) => {
 
   // Birth Sun Calc
   const timezone = tzlookup(coordinates.latitude, coordinates.longitude);
-  // const sunPosData = calculateJulianDayAndUT(timezone, birthDate, birthTime);
   const sunPosData = calculateJulianDayAndUT(
     timezone,
     birthDate,
@@ -178,7 +176,7 @@ export const solar = (req: Request, res: Response) => {
   });
 
   const returnSouthNode = getSouthNode(targetYearJulianDay);
-  planets.push(returnSouthNode);
+  returnPlanets.push(returnSouthNode);
 
   res.json({
     // targetYearSunData,
